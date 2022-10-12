@@ -1,6 +1,7 @@
 package modifier
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"os"
@@ -49,9 +50,13 @@ func AllowMysqlAES() bool {
 	return allow
 }
 
-func QueryDbName(db *sql.DB) (string, error) {
+type QueryRow interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+func QueryDbName(db QueryRow) (string, error) {
 	var dbName string
-	err := db.QueryRow("SELECT DATABASE()").Scan(&dbName)
+	err := db.QueryRowContext(context.Background(), "SELECT DATABASE()").Scan(&dbName)
 	if err != nil {
 		return "", err
 	}
