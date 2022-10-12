@@ -11,11 +11,6 @@ type createAesScope struct {
 	aesCallback
 }
 
-type valuePair struct {
-	field       *gorm.Field
-	originValue reflect.Value
-}
-
 func (scope createAesScope) callback() {
 	tab := scope.GetAesTable(scope.tableName)
 	if tab.IsNone() {
