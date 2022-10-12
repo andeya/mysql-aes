@@ -2,4 +2,7 @@ go 1.19
 
 use (
 	./modifier
+	./aesdb
+	./gormplugin
+	./gormplugin2
 )
