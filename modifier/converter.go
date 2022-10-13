@@ -139,14 +139,14 @@ func (a *AesConverter) ToDecryptedJoinConditions(tableName, join string) (string
 	return strings.TrimPrefix(sql, prefix), nil
 }
 
-func (a *AesConverter) ToDecryptedSelectFields(tableName string, hadSelectPrefix bool, queries ...string) ([]string, error) {
-	queries = cleanEmpty(queries)
+func (a *AesConverter) ToDecryptedSelectFields(tableName string, hadSelectPrefix bool, selectFields ...string) ([]string, error) {
+	selectFields = cleanEmpty(selectFields)
 	var prefix string
 	if !hadSelectPrefix {
 		prefix = "SELECT "
 	}
 	var suffix = " FROM `" + tableName + "`"
-	stmt, err := a.parseStmt(prefix + strings.Join(queries, ",") + suffix)
+	stmt, err := a.parseStmt(prefix + strings.Join(selectFields, ",") + suffix)
 	if err != nil {
 		return nil, err
 	}
