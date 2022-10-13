@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/andeya/gust v1.2.2-alpha.2
-	github.com/andeya/mysql-aes/modifier v0.0.0-20221012065536-43c0931b59ee
+	github.com/andeya/mysql-aes/modifier v0.0.0-20221013075214-4d6ef8f81719
 	github.com/jinzhu/gorm v1.9.16
 	github.com/pingcap/parser v0.0.0-20220622031236-3bca03d3057b
 )

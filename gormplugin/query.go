@@ -63,7 +63,14 @@ func (scope queryAesScope) callback() {
 			selectFields = append(selectFields, newFields...)
 		}
 	} else {
-		newFields, err := scope.ToDecryptedSelectFields(scope.tableName, false, scopeSearch.selects[queryKey].(string))
+		var selectString string
+		switch value := scopeSearch.selects[queryKey].(type) {
+		case string:
+			selectString = value
+		case []string:
+			selectString = strings.Join(value, ", ")
+		}
+		newFields, err := scope.ToDecryptedSelectFields(scope.tableName, false, selectString)
 		if err != nil {
 			scope.Err(err)
 			return
