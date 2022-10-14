@@ -3,7 +3,7 @@ package gormplugin2
 import (
 	"context"
 	"strings"
-	"sync"
+	"unsafe"
 
 	"github.com/andeya/gust"
 	"github.com/andeya/mysql-aes/modifier"
@@ -12,27 +12,31 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var onceRegister sync.Once
-var regErr error
+var dbMap = gust.NewMutex(make(map[uintptr]gust.Errable[error]))
 
 func RegisterAesCallback(db *gorm.DB) gust.Errable[error] {
-	onceRegister.Do(func() {
-		if !modifier.AllowMysqlAES() {
-			return
-		}
-		var ctl *dbController
-		ctl, regErr = newDbController(db)
-		if regErr != nil {
-			return
-		}
-		gust.TryPanic(db.Callback().Query().Before("gorm:query").Register("aes:query", ctl.queryCallback))
-		gust.TryPanic(db.Callback().Delete().Before("gorm:delete").Register("aes:delete", ctl.deleteCallback))
-		gust.TryPanic(db.Callback().Create().Before("gorm:create").Register("aes:before_create", ctl.createCallback))
-		gust.TryPanic(db.Callback().Update().Before("gorm:update").Register("aes:before_update", ctl.updateCallback))
-		gust.TryPanic(db.Callback().Raw().Before("gorm:raw").Register("aes:raw", ctl.rawCallback))
-		gust.TryPanic(db.Callback().Row().Before("gorm:row").Register("aes:row", ctl.rawCallback))
-	})
-	return gust.ToErrable(regErr)
+	if !modifier.AllowMysqlAES() {
+		return gust.NonErrable[error]()
+	}
+	m := dbMap.Lock()
+	defer dbMap.Unlock(m)
+	key := uintptr(unsafe.Pointer(db))
+	if err, ok := m[key]; ok {
+		return err
+	}
+	ctl, regErr := newDbController(db)
+	if regErr != nil {
+		m[key] = gust.ToErrable[error](regErr)
+		return m[key]
+	}
+	gust.TryPanic(db.Callback().Query().Before("gorm:query").Register("aes:query", ctl.queryCallback))
+	gust.TryPanic(db.Callback().Delete().Before("gorm:delete").Register("aes:delete", ctl.deleteCallback))
+	gust.TryPanic(db.Callback().Create().Before("gorm:create").Register("aes:before_create", ctl.createCallback))
+	gust.TryPanic(db.Callback().Update().Before("gorm:update").Register("aes:before_update", ctl.updateCallback))
+	gust.TryPanic(db.Callback().Raw().Before("gorm:raw").Register("aes:raw", ctl.rawCallback))
+	gust.TryPanic(db.Callback().Row().Before("gorm:row").Register("aes:row", ctl.rawCallback))
+	m[key] = gust.NonErrable[error]()
+	return m[key]
 }
 
 // RegisterAesTable Register the AES information of the specified DB Table
