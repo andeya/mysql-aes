@@ -45,23 +45,8 @@ func (scope queryAesScope) callback() {
 		scopeSearch.selects = map[string]interface{}{
 			argsKey: []interface{}{},
 		}
-		fields := scope.Fields()
 		hasJoin := len(scopeSearch.joinConditions) > 0
-		tableName := scope.QuotedTableName()
-		for _, field := range fields {
-			var name string
-			if hasJoin {
-				name = tableName + "." + field.DBName
-			} else {
-				name = field.DBName
-			}
-			newFields, err := scope.ToDecryptedSelectFields(scope.tableName, false, name)
-			if err != nil {
-				scope.Err(err)
-				return
-			}
-			selectFields = append(selectFields, newFields...)
-		}
+		selectFields = scope.ExpandWildcard(scope.tableName, hasJoin)
 	} else {
 		var selectString string
 		switch value := scopeSearch.selects[queryKey].(type) {
