@@ -18,6 +18,12 @@ func (scope queryAesScope) callback() {
 		scope.rawCallback(scopeSearch)
 		return
 	}
+	hasJoin := len(scopeSearch.joinConditions) > 0
+	if !hasJoin {
+		if scope.GetAesTable(scope.tableName).IsNone() {
+			return
+		}
+	}
 	for _, conditions := range [][]map[string]interface{}{scopeSearch.whereConditions, scopeSearch.orConditions, scopeSearch.notConditions} {
 		for _, condition := range conditions {
 			v, err := scope.ToDecryptedWhereConditions(scope.tableName, condition[queryKey].(string), false)
@@ -40,13 +46,14 @@ func (scope queryAesScope) callback() {
 	if !scope.isSelect {
 		return
 	}
-	var selectFields []string
 	if len(scopeSearch.selects) == 0 {
-		scopeSearch.selects = map[string]interface{}{
-			argsKey: []interface{}{},
+		selectFields := scope.ExpandWildcard(scope.tableName, hasJoin)
+		if len(selectFields) > 0 {
+			scopeSearch.selects = map[string]interface{}{
+				argsKey:  []interface{}{},
+				queryKey: strings.Join(selectFields, ","),
+			}
 		}
-		hasJoin := len(scopeSearch.joinConditions) > 0
-		selectFields = scope.ExpandWildcard(scope.tableName, hasJoin)
 	} else {
 		var selectString string
 		switch value := scopeSearch.selects[queryKey].(type) {
@@ -55,14 +62,13 @@ func (scope queryAesScope) callback() {
 		case []string:
 			selectString = strings.Join(value, ", ")
 		}
-		newFields, err := scope.ToDecryptedSelectFields(scope.tableName, false, selectString)
+		selectFields, err := scope.ToDecryptedSelectFields(scope.tableName, false, selectString)
 		if err != nil {
 			scope.Err(err)
 			return
 		}
-		selectFields = append(selectFields, newFields...)
+		scopeSearch.selects[queryKey] = strings.Join(selectFields, ",")
 	}
-	scopeSearch.selects[queryKey] = strings.Join(selectFields, ",")
 }
 
 func (scope queryAesScope) rawCallback(scopeSearch *search) {
