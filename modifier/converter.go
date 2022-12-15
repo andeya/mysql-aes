@@ -328,6 +328,7 @@ func (a *AesConverter) decryptColumnNameExpr(columnNameExpr *ast.ColumnNameExpr)
 			if t.IsAesField(col.Name.O) {
 				return t.decryptValueNode(columnNameExpr), columnName
 			}
+			// return columnNameExpr, columnName
 		}
 	} else {
 		// no need to deal with
@@ -412,12 +413,14 @@ func (a *AesConverter) decryptSelectFieldExpr(stmt *ast.SelectStmt) error {
 	defer func() {
 		stmt.Fields = fields
 	}()
-	var wildCardField *ast.SelectField
+	var wildCardFields []*ast.SelectField
+	var retFields = make([]*ast.SelectField, 0, len(fields.Fields))
 	for _, field := range fields.Fields {
 		if field.WildCard != nil {
-			wildCardField = field
-			break
+			wildCardFields = append(wildCardFields, field)
+			continue
 		}
+		retFields = append(retFields, field)
 		expr, _ := field.Expr.(*ast.ColumnNameExpr)
 		if expr == nil {
 			continue
@@ -431,20 +434,25 @@ func (a *AesConverter) decryptSelectFieldExpr(stmt *ast.SelectStmt) error {
 			field.AsName = columnName.UnwrapUnchecked().Name
 		}
 	}
-	if wildCardField == nil {
+	if len(wildCardFields) == 0 {
 		return nil
 	}
-	var tableAlias = wildCardField.WildCard.Table.O
-	tab := a.getTableByAlias(tableAlias)
-	if tab.IsNone() {
-		return nil
+	for _, wildCardField := range wildCardFields {
+		var tableAlias = wildCardField.WildCard.Table.O
+		tab := a.getTableByAlias(tableAlias)
+		if tab.IsNone() {
+			// table definition not found, no processing
+			retFields = append(retFields, wildCardField)
+			continue
+		}
+		table := tab.UnwrapUnchecked()
+		// join
+		if len(a.tabAlias) > 1 && tableAlias == "" {
+			tableAlias = a.getAliasByName(table.tableName).UnwrapOr(table.tableName)
+		}
+		retFields = append(retFields, table.newSelectFields(tableAlias)...)
 	}
-	table := tab.UnwrapUnchecked()
-	// join
-	if len(a.tabAlias) > 1 && tableAlias == "" {
-		tableAlias = a.getAliasByName(table.tableName).UnwrapOr(table.tableName)
-	}
-	fields.Fields = table.newSelectFields(tableAlias)
+	fields.Fields = retFields
 	return nil
 }
 
